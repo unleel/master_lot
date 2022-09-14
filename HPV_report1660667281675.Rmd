@@ -1,0 +1,139 @@
+---
+title: "HPV"
+name: Christy
+date: "2022-08-16"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+library(readxl)
+library(writexl)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+initial_xl <- read_excel("~/R_Sandbox/report1660667281675'.xlsx") ## change the directory and file name
+
+
+```
+
+# HPV Master lot reports
+
+> The code chunk to clean up the "Lot Number" column from excel file
+
+```{r, include=TRUE, echo=TRUE}
+
+lot_col <- initial_xl[,"Lot Number"] ## data frame of lot numbers
+lot_col <- na.omit(lot_col) ## delete all empty cells (delete NA)
+
+
+lot_coll <- gsub("[A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z]", "", lot_col$`Lot Number`) ## get rid of all capital letters from lot_col
+lot_coll <- gsub(tolower("[A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z]"), "", lot_coll) ## get ride of all lower case letters from lot_coll vector
+lot_coll <- gsub("[:, *, #, ,, ), (, /, \\, --, ;, &, .)]", "", lot_coll) 
+
+```
+
+```{r, include=TRUE, echo=TRUE}
+
+tecan <- lot_coll[startsWith(lot_coll, "9")] ## Tecan tips
+longer <- lot_coll[str_length(lot_coll) > 6] ## length greater than 6
+
+for (i in 1:longer) {
+  if (which(longer[i] == lot_coll[i])) {
+    lot_coll <- lot_coll[-i]
+  }
+}
+
+longer <- longer[!startsWith(longer, "9")] ## excluding ML that begins with 9 from the vector, longer
+
+if (startsWith(longer[i], "1")) {
+    longer[i] <- gsub('1', "", longer[i])
+}
+
+x <- substring(longer, seq(1, nchar(longer), 6), seq(6, nchar(longer), 6)) 
+lot_coll <- append(lot_coll, x)
+lot_coll <- lot_coll[-i]
+
+
+```
+
+```{r, include=TRUE, echo=TRUE}
+output <- c()
+tecan <- c()
+for (i in 1:length(lot_coll)) {
+     if (str_length(lot_coll[i]) > 6 && str_length(lot_coll[i]) %% 2 == 0) {
+         x <- substring(lot_coll[i], seq(1, nchar(lot_coll[i]), 6), seq(6, nchar(lot_coll[i]), 6)) 
+         lot_coll <- append(lot_coll, x)
+         lot_coll <- lot_coll[-i]
+     } else if (startsWith(lot_coll[i], "1")) {
+       lot_coll[i] <- gsub('1', "", lot_coll[i]) ## remove heading 1
+     } else if(startsWith(lot_coll[i], "9")) {
+       tecan <- append(tecan, lot_coll[i])
+       lot_coll[-i] ## not working
+     }
+}
+```
+
+```{r, include=TRUE, echo=TRUE}
+## lot_coll[63] 30933902210 and lot_coll[125] 29877900627289795 has bottle ID in the middle
+weirdos <- substring(lot_coll[63], 1, 6) 
+lot_coll <- append(lot_coll, weirdos)
+
+weirdos <- substring(lot_coll[63], 7, str_length(lot_coll[63]))
+lot_coll <- append(lot_coll, weirdos)
+
+weirdos <- substring(lot_coll[125], 1, 6)
+lot_coll <- append(lot_coll, weirdos)
+
+weirdos <- substring(lot_coll[125], 7, 11)
+lot_coll <- append(lot_coll, weirdos)
+
+weirdos <- substring(lot_coll[125], 12, str_length(lot_coll[125]))
+lot_coll <- append(lot_coll, weirdos)
+
+
+## lot_coll[91] 282196297664 for some reason does want to substring
+weirdos <- substring(lot_coll[92], 1, 6) 
+lot_coll <- append(lot_coll, weirdos)
+
+weirdos <- substring(lot_coll[92], 7, str_length(lot_coll[92]))
+lot_coll <- append(lot_coll, weirdos)
+
+lot_coll <- lot_coll[-63]
+lot_coll <- lot_coll[-91]
+lot_coll <- lot_coll[-123]
+
+master <- na.omit(lot_coll)
+
+```
+
+
+
+```{r, include=TRUE, echo=TRUE}
+
+
+
+## unique identifier, identifying the x-axis
+lot_coll_unique <- unique(master)
+
+master_table <- print(table(master))
+master_df <- as.data.frame(master_table)
+
+```
+
+```{r, include=TRUE, echo=TRUE}
+ m <- ggplot(data=master_df, aes(x=master, y=Freq, color=master)) +
+     geom_bar(stat="identity") + theme_minimal() +
+     geom_text(aes(label=Freq), vjust=-1, color="black", position = position_dodge(0), size=2) + theme(axis.text.x = element_text(angle = 90)) + scale_fill_hue()
+m
+```
+
+```{r, include=TRUE, echo=TRUE}
+p <- ggplot(data=master_df, aes(x="", y=Freq, fill=master)) +
+  geom_bar(stat="identity", width =1, color="white") +
+  coord_polar("y", start=0) +
+  theme_void()
+p
+
+```
